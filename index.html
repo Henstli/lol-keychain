@@ -1,0 +1,435 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>LoL Keychain</title>
+<style>
+:root{--bg:#0b1117;--panel:#131d27;--panel2:#1a2734;--line:#26384a;--text:#e6e1d3;--mute:#8a98a6;--gold:#c8aa6e;--teal:#2fd1c1;--bad:#e5645a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.45 "Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+header{display:flex;align-items:center;gap:6px;padding:14px 28px;border-bottom:1px solid rgba(38,56,74,.7);position:sticky;top:0;background:rgba(11,17,23,.8);backdrop-filter:blur(14px);z-index:50}
+.brand{display:flex;align-items:center;gap:11px;margin-right:auto}
+.mark{width:34px;height:34px;border-radius:10px;background:linear-gradient(135deg,#f0d696,#b99552);display:grid;place-items:center;box-shadow:0 2px 12px rgba(200,170,110,.25)}
+.word{font:650 21px/1 "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;letter-spacing:-.2px;color:var(--text)}
+button{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:6px;padding:8px 14px;cursor:pointer}
+button:hover{border-color:var(--gold)}
+button.primary{background:var(--gold);color:#1a1405;border-color:var(--gold);font-weight:600}
+button.danger{color:var(--bad)}
+.pill{background:linear-gradient(180deg,#e3c98d,#c8aa6e);color:#1a1405;border:0;border-radius:99px;padding:9px 20px;font-weight:600;margin-right:6px;box-shadow:0 2px 10px rgba(200,170,110,.2)}
+.pill:hover{filter:brightness(1.07)}
+.icon{width:40px;height:40px;padding:0;display:grid;place-items:center;border-radius:50%;background:transparent;border:1px solid transparent;color:var(--mute)}
+.icon:hover{background:var(--panel2);border-color:var(--line);color:var(--text)}
+.icon svg{width:20px;height:20px}
+#refreshAll.spin svg{animation:spin .9s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+@media (prefers-reduced-motion:reduce){#refreshAll.spin svg{animation:none}}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible,.card:focus-visible{outline:2px solid var(--teal);outline-offset:2px}
+.bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding:16px 28px 0}
+.bar select,.bar input{width:auto;min-width:150px}
+#cats{display:flex;gap:8px;flex-wrap:wrap;margin-right:auto}
+#cats button{border-left:4px solid var(--c)}
+#cats button.on{border-color:var(--c);border-left-width:4px;background:var(--panel);color:var(--c)}
+#grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;padding:20px 28px 120px;align-items:start}
+.card{height:178px;overflow:visible}
+.card{background:var(--panel);border:1px solid var(--line);border-left:4px solid var(--cat);border-radius:10px;padding:16px;cursor:grab;position:relative}
+.card:hover,.card:focus-visible{border-color:var(--gold);border-left-color:var(--cat);z-index:10;border-bottom-left-radius:0;border-bottom-right-radius:0}
+.card.drag{opacity:.4}
+.card.over{border-color:var(--teal);border-left-color:var(--cat)}
+.top{display:flex;gap:12px;align-items:center}
+.top img{width:56px;height:56px;border-radius:50%;border:2px solid var(--gold);background:var(--panel2);flex:none}
+.who{min-width:0;flex:1}
+.name{font-weight:600;font-size:16px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.tag{color:var(--mute);font-weight:400}
+.sub{color:var(--mute);font-size:13px}
+.chip{font-size:12px;padding:2px 8px;border-radius:99px;border:1px solid var(--c);color:var(--c);white-space:nowrap}
+.rankrow{display:flex;gap:10px;align-items:center;margin-top:12px}
+.rank{font-weight:600}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.card>.tags{height:24px;flex-wrap:nowrap;overflow:hidden;align-items:center}
+.sub{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.more{display:none;position:absolute;top:100%;left:-4px;right:-1px;margin-top:-1px;background:var(--panel);border:1px solid var(--gold);border-left:4px solid var(--cat);border-top:1px dashed var(--line);border-radius:0 0 10px 10px;padding:10px 16px 14px;color:var(--mute);font-size:13px;box-shadow:0 10px 24px rgba(0,0,0,.5)}
+.card:hover .more,.card:has(:focus-visible) .more,.card:focus-visible .more{display:block}
+.card.drag .more{display:none}
+.more div{padding-top:5px}
+.more .tags{margin-top:6px}
+.quick{display:flex;gap:8px;padding-top:2px}.quick button{padding:5px 10px;font-size:13px}
+#foot{position:fixed;left:0;right:0;bottom:0;height:34px;display:flex;align-items:center;gap:12px;padding:0 28px;background:rgba(11,17,23,.94);border-top:1px solid var(--line);color:var(--mute);font-size:13px;z-index:60}
+#foot .err{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.errbtn{padding:2px 10px;font-size:12px;color:var(--bad);border-color:var(--bad);background:transparent;border-radius:99px;flex:none}
+#errPanel{display:none;position:fixed;left:0;right:0;bottom:34px;max-height:40vh;overflow:auto;background:var(--panel);border-top:1px solid var(--bad);padding:10px 28px;font-size:13px;color:var(--text);z-index:60}
+#errPanel div{padding:3px 0}
+h2.sec{margin-top:28px}
+.err{color:var(--bad)}
+.empty{color:var(--mute);grid-column:1/-1;max-width:55ch}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--gold);border-radius:12px;padding:24px;width:min(560px,94vw);max-height:92vh}
+dialog::backdrop{background:rgba(0,0,0,.65)}
+dialog h2{margin:0 0 16px;font:650 19px "Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;color:var(--gold)}
+label{display:block;margin:12px 0 4px;color:var(--mute);font-size:13px}
+input,select,textarea{width:100%;background:var(--bg);color:var(--text);border:1px solid var(--line);border-radius:6px;padding:9px 10px;font:inherit}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:8px}.row input{flex:1}
+.pick{display:flex;gap:8px;flex-wrap:wrap}
+.pick button{padding:5px 11px;border-color:var(--c);color:var(--c);background:transparent;font-size:13px}
+.pick button.on{background:var(--c);color:#10161c;font-weight:600}
+.actions{display:flex;gap:8px;margin-top:20px;flex-wrap:wrap}.actions .sp{margin-left:auto}
+.note{color:var(--mute);font-size:13px;margin-top:8px}
+#lock{position:fixed;inset:0;background:var(--bg);z-index:100;display:none;place-items:center}
+#lock div{width:min(360px,90vw)}
+#toast{position:fixed;bottom:54px;left:50%;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--gold);padding:10px 18px;border-radius:8px;display:none;z-index:200;max-width:90vw}
+</style></head>
+<body>
+<header>
+  <div class="brand">
+    <span class="mark" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1a1405" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><circle cx="7.5" cy="7.5" r="4.5"/><path d="M10.8 10.8 21 21M16 16l3-3M13.5 18.5l2.5-2.5"/></svg></span>
+    <span class="word">LoL Keychain</span>
+  </div>
+  <button id="addBtn" class="pill">Add account</button>
+  <button id="refreshAll" class="icon" title="Refresh all accounts" aria-label="Refresh all accounts"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg></button>
+  <button id="settingsBtn" class="icon" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="7.2"/><circle cx="12" cy="12" r="2.7"/><path d="M19.20 12.00L22.40 12.00" stroke-width="3.4" stroke-linecap="butt"/><path d="M17.09 17.09L19.35 19.35" stroke-width="3.4" stroke-linecap="butt"/><path d="M12.00 19.20L12.00 22.40" stroke-width="3.4" stroke-linecap="butt"/><path d="M6.91 17.09L4.65 19.35" stroke-width="3.4" stroke-linecap="butt"/><path d="M4.80 12.00L1.60 12.00" stroke-width="3.4" stroke-linecap="butt"/><path d="M6.91 6.91L4.65 4.65" stroke-width="3.4" stroke-linecap="butt"/><path d="M12.00 4.80L12.00 1.60" stroke-width="3.4" stroke-linecap="butt"/><path d="M17.09 6.91L19.35 4.65" stroke-width="3.4" stroke-linecap="butt"/></svg></button>
+</header>
+<div class="bar">
+  <div id="cats"></div>
+  <select id="fRegion" aria-label="Server"></select>
+  <select id="fTag" aria-label="Tag"></select>
+  <input id="fSearch" type="search" placeholder="Search by name" aria-label="Search">
+</div>
+<main id="grid"></main>
+<div id="errPanel"></div>
+<footer id="foot"></footer>
+<dialog id="dlg"></dialog>
+<div id="lock"><div>
+  <h2 style="font:650 22px 'Segoe UI',system-ui,sans-serif;color:var(--gold)">Unlock vault</h2>
+  <input id="lockPw" type="password" placeholder="Master password">
+  <p id="lockErr" class="err"></p>
+  <button id="unlockBtn" class="primary">Unlock</button>
+</div></div>
+<div id="toast"></div>
+<script>
+const $ = s => document.querySelector(s);
+const call = (c, ...a) => window.api.invoke(c, ...a);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+const REG = {euw:'EUW',eune:'EUNE',tr:'TR',ru:'RU',me:'ME',na:'NA',br:'BR',lan:'LAN',las:'LAS',kr:'KR',jp:'JP',oce:'OCE',ph:'PH',sg:'SG',th:'TH',tw:'TW',vn:'VN'};
+const CATS = {main:['Main','#e0b94d'],smurf:['Smurf','#2fd1c1'],otp:['OTP','#c06be8'],legacy:['Legacy','#8a98a6'],other:['Other','#6a8dff']};
+const PRESET_TAGS = ['Leveling','Ranked ready','Unplayed','For sale','Penalty','Banned'];
+const TIERS = {IRON:'#8a7f7a',BRONZE:'#b87a4b',SILVER:'#a9b6c2',GOLD:'#e0b94d',PLATINUM:'#3fc1b3',EMERALD:'#2eb872',DIAMOND:'#7a9bff',MASTER:'#c06be8',GRANDMASTER:'#e8645a',CHALLENGER:'#f5d98a'};
+const HIGH = ['MASTER','GRANDMASTER','CHALLENGER'];
+const cap = s => s[0] + s.slice(1).toLowerCase();
+const rankTxt = r => r ? cap(r.tier) + (HIGH.includes(r.tier) ? '' : ' ' + r.rank) + ', ' + r.lp + ' LP' : 'Unranked';
+const wr = r => r.w + 'W / ' + r.l + 'L (' + Math.round(100 * r.w / Math.max(1, r.w + r.l)) + '%)';
+const tagColor = t => 'hsl(' + ([...t].reduce((h, c) => (h * 31 + c.charCodeAt(0)) >>> 0, 7) % 360) + ' 60% 65%)';
+const tagChip = t => `<span class="chip" style="--c:${tagColor(t)}">${esc(t)}</span>`;
+
+// custom rank icons (shield + gem, top tiers get a crown)
+function emblem(tier, s = 38) {
+  const c = TIERS[tier];
+  if (!c) return `<svg width="${s}" height="${s}" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2 36 8v14c0 10-7 17-16 21C11 39 4 32 4 22V8z" fill="none" stroke="#5b6b7a" stroke-width="2.5" stroke-dasharray="4 3"/></svg>`;
+  const inner = HIGH.includes(tier)
+    ? `<path d="M11 29l-1-13 6 5 4-9 4 9 6-5-1 13z" fill="${c}"/>`
+    : `<path d="M20 10l10 11-10 15-10-15z" fill="${c}"/><path d="M10 21h20M20 10v26" stroke="#0b1117" stroke-width="1.4" opacity=".55"/>`;
+  return `<svg width="${s}" height="${s}" viewBox="0 0 40 44" aria-hidden="true"><path d="M20 2 36 8v14c0 10-7 17-16 21C11 39 4 32 4 22V8z" fill="#0b1117" stroke="${c}" stroke-width="2.5"/>${inner}</svg>`;
+}
+
+let accounts = [], status = {};
+let fCat = 'all', fRegion = 'all', fTag = 'all', q = '';
+
+function toast(t) { const e = $('#toast'); e.textContent = t; e.style.display = 'block'; clearTimeout(toast.t); toast.t = setTimeout(() => e.style.display = 'none', 4500); }
+async function reload() { accounts = await call('list'); render(); }
+
+function render() {
+  $('#cats').innerHTML = `<button data-c="all" style="--c:var(--gold)" class="${fCat === 'all' ? 'on' : ''}">All (${accounts.length})</button>` +
+    Object.entries(CATS).map(([k, [n, col]]) => `<button data-c="${k}" style="--c:${col}" class="${fCat === k ? 'on' : ''}">${n} (${accounts.filter(a => a.category === k).length})</button>`).join('');
+  const regs = [...new Set(accounts.map(a => a.region))];
+  $('#fRegion').innerHTML = '<option value="all">All servers</option>' + regs.map(r => `<option value="${r}">${REG[r] || r}</option>`).join('');
+  if (!regs.includes(fRegion)) fRegion = 'all'; $('#fRegion').value = fRegion;
+  const tags = [...new Set(accounts.flatMap(a => a.tags))].sort();
+  $('#fTag').innerHTML = '<option value="all">All tags</option>' + tags.map(t => `<option value="${esc(t)}">${esc(t)}</option>`).join('');
+  if (!tags.includes(fTag)) fTag = 'all'; $('#fTag').value = fTag;
+
+  const list = accounts.filter(a => (fCat === 'all' || a.category === fCat) && (fRegion === 'all' || a.region === fRegion) &&
+    (fTag === 'all' || a.tags.includes(fTag)) && (a.cache && a.cache.name ? a.cache.name + '#' + a.cache.tag : a.riotId).toLowerCase().includes(q));
+  $('#grid').innerHTML = list.length ? list.map(card).join('') :
+    '<p class="empty">No accounts match your filters. Click “Add account” and enter a Riot ID such as Name#EUNE.</p>';
+  renderFoot();
+}
+
+function card(a) {
+  const c = a.cache || {}, s = c.solo, cat = CATS[a.category] || CATS.other;
+  const color = s ? TIERS[s.tier] : 'var(--mute)';
+  const nm = c.name || a.riotId.split('#')[0], tg = c.tag || a.riotId.split('#')[1] || '';
+  return `<article class="card" draggable="true" tabindex="0" data-id="${a.id}" style="--cat:${cat[1]}">
+    <div class="top">
+      <img draggable="false" ${c.icon ? `src="${c.icon}"` : ''} alt="">
+      <div class="who"><div class="name" title="${esc(nm)}#${esc(tg)}">${esc(nm)}<span class="tag">#${esc(tg)}</span></div>
+      <div class="sub">${REG[a.region] || a.region}${c.level ? ', level ' + c.level : ''}</div></div>
+      <span class="chip" style="--c:${cat[1]}">${cat[0]}</span>
+    </div>
+    <div class="rankrow">${emblem(s && s.tier)}<div class="rank" style="color:${color}">${rankTxt(s)}</div></div>
+    <div class="tags">${a.tags.slice(0, 2).map(tagChip).join('')}${a.tags.length > 2 ? `<span class="sub">+${a.tags.length - 2}</span>` : ''}</div>
+    <div class="more">
+      <div class="quick"><button data-quick="username" data-id="${a.id}">Copy login</button><button data-quick="password" data-id="${a.id}">Copy password</button></div>
+      <div>Category: ${cat[0]}</div>
+      ${s ? `<div>Solo/Duo: ${wr(s)}</div>` : ''}
+      <div>Flex: ${c.flex ? rankTxt(c.flex) + ', ' + wr(c.flex) : 'unranked'}</div>
+      ${a.tags.length ? `<div class="tags">${a.tags.map(tagChip).join('')}</div>` : ''}
+      <div>${c.updated ? 'Updated: ' + new Date(c.updated).toLocaleString('en-GB') : 'No data loaded yet'}</div>
+    </div></article>`;
+}
+
+function field(label, id, val, type = 'text', extra = '') {
+  return `<label for="${id}">${label}</label><div class="row"><input id="${id}" type="${type}" value="${esc(val)}">${extra}</div>`;
+}
+
+function openDetail(id) {
+  const a = accounts.find(x => x.id === id), p = a ? a.priv : {};
+  let cat = a ? a.category : 'smurf', tags = a ? [...a.tags] : [];
+  $('#dlg').innerHTML = `<h2>${a ? 'Account details' : 'New account'}</h2>
+    <label for="f_riot">Riot ID</label><input id="f_riot" value="${esc(a ? a.riotId : '')}" placeholder="Name#TAG">
+    <label for="f_region">Server</label><select id="f_region">${Object.entries(REG).map(([k, n]) => `<option value="${k}" ${a && a.region === k ? 'selected' : ''}>${n}</option>`).join('')}</select>
+    <label>Category</label><div class="pick" id="catPick"></div>
+    <label>Tags</label><div class="pick" id="tagPick"></div>
+    <div class="row" style="margin-top:8px"><input id="f_newtag" placeholder="Custom tag"><button id="addTag" style="flex:none">Add tag</button></div>
+    ${field('Login', 'f_user', p.username, 'text', '<button data-copy="f_user" data-label="Login">Copy</button>')}
+    ${field('Password', 'f_pass', p.password, 'password', '<button data-show="f_pass">Show</button><button data-copy="f_pass" data-label="Password">Copy</button>')}
+    ${field('Email', 'f_mail', p.email, 'text', '<button data-copy="f_mail" data-label="Email">Copy</button>')}
+    <label for="f_notes">Notes</label><textarea id="f_notes">${esc(p.notes)}</textarea>
+    <div class="actions">
+      <button class="primary" id="saveBtn">Save</button>
+      ${a ? '<button id="refBtn">Refresh data</button><button class="danger" id="delBtn">Delete</button>' : ''}
+      <button class="sp" id="closeBtn">Close</button>
+    </div>`;
+  const drawPicks = () => {
+    $('#catPick').innerHTML = Object.entries(CATS).map(([k, [n, col]]) => `<button data-cat="${k}" style="--c:${col}" class="${cat === k ? 'on' : ''}">${n}</button>`).join('');
+    const all = [...new Set([...PRESET_TAGS, ...tags])];
+    $('#tagPick').innerHTML = all.map(t => `<button data-t="${esc(t)}" style="--c:${tagColor(t)}" class="${tags.includes(t) ? 'on' : ''}">${esc(t)}</button>`).join('');
+  };
+  drawPicks();
+  $('#dlg').onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.cat) { cat = b.dataset.cat; drawPicks(); }
+    if (b.dataset.t) { tags = tags.includes(b.dataset.t) ? tags.filter(x => x !== b.dataset.t) : [...tags, b.dataset.t]; drawPicks(); }
+  };
+  $('#addTag').onclick = () => {
+    const t = $('#f_newtag').value.trim();
+    if (t && !tags.includes(t)) tags.push(t);
+    $('#f_newtag').value = ''; drawPicks();
+  };
+  $('#dlg').showModal();
+  $('#closeBtn').onclick = () => $('#dlg').close();
+  $('#saveBtn').onclick = async () => {
+    const riotId = $('#f_riot').value.trim(), region = $('#f_region').value;
+    if (riotId.lastIndexOf('#') < 1) return toast('Riot ID must look like Name#TAG');
+    const newId = await call('upsert', { id, riotId, region, category: cat, tags,
+      priv: { username: $('#f_user').value, password: $('#f_pass').value, email: $('#f_mail').value, notes: $('#f_notes').value } });
+    $('#dlg').close(); await reload();
+    if (!(a && a.riotId === riotId && a.region === region)) await refresh(newId);
+  };
+  if (a) {
+    $('#delBtn').onclick = async () => { if (confirm('Delete this account and all its saved details?')) { await call('delete', id); $('#dlg').close(); reload(); } };
+    $('#refBtn').onclick = async () => { $('#dlg').close(); await refresh(id); };
+  }
+}
+
+let busy = false, showErr = false;
+async function copyText(text, label) {
+  await call('copy', text, 30000);
+  toast(label + ' copied. The clipboard clears in 30 seconds.');
+}
+function renderFoot() {
+  const errs = accounts.filter(a => a.cache && a.cache.error);
+  const last = Math.max(0, ...accounts.map(a => (a.cache && a.cache.updated) || 0));
+  const when = last ? 'Last updated ' + new Date(last).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'No data loaded yet';
+  const nm = a => esc((a.cache && a.cache.name) || a.riotId);
+  $('#foot').innerHTML = `<span>${busy ? 'Refreshing…' : when}</span>` +
+    (errs.length ? `<button class="errbtn" id="errBtn">${errs.length} problem${errs.length > 1 ? 's' : ''}</button><span class="err">${nm(errs[0])}: ${esc(errs[0].cache.error)}</span>` : '');
+  $('#errPanel').innerHTML = errs.map(a => `<div><b>${nm(a)}</b> (${REG[a.region] || a.region}): ${esc(a.cache.error)}</div>`).join('');
+  $('#errPanel').style.display = errs.length && showErr ? 'block' : 'none';
+  const b = $('#errBtn'); if (b) b.onclick = () => { showErr = !showErr; renderFoot(); };
+}
+async function refresh(id, opts = {}) {
+  if (!status.apiKey) { if (!opts.silent) toast('Add your API key in Settings first.'); return; }
+  if (busy) { if (opts.silent) return; while (busy) await new Promise(r => setTimeout(r, 300)); }
+  busy = true; renderFoot();
+  $('#refreshAll').classList.add('spin');
+  try {
+    await call('refresh', id || null, opts.maxAge || 0);
+    await reload();
+    if (!opts.silent) toast('Refresh finished');
+  } finally { busy = false; $('#refreshAll').classList.remove('spin'); renderFoot(); }
+}
+
+function openSettings() {
+  $('#dlg').onclick = null;
+  const sel = (id, val, opts) => `<select id="${id}">${opts.map(([v, n]) => `<option value="${v}" ${v === val ? 'selected' : ''}>${n}</option>`).join('')}</select>`;
+  $('#dlg').innerHTML = `<h2>Settings</h2>
+    <label for="s_key">Riot API key (from developer.riotgames.com)</label>
+    <input id="s_key" value="${esc(status.apiKey)}" placeholder="RGAPI-…">
+    <div class="actions"><button class="primary" id="keyBtn">Save key</button><button id="portalBtn">Open developer portal</button><button id="guideBtn">Setup guide</button></div>
+
+    <h2 class="sec">Refresh</h2>
+    <label for="s_ar">Refresh data while the app is open</label>
+    ${sel('s_ar', status.autoRefreshMin, [[0, 'Only at startup'], [30, 'Every 30 minutes'], [60, 'Every hour'], [180, 'Every 3 hours'], [360, 'Every 6 hours']])}
+    <p class="note">Data is always refreshed at startup, skipping accounts updated in the last 15 minutes.</p>
+
+    <h2 class="sec">Security</h2>
+    <label for="s_lock">Lock the vault after inactivity</label>
+    ${sel('s_lock', status.lockMinutes, [[5, '5 minutes'], [15, '15 minutes'], [30, '30 minutes'], [60, '1 hour'], [0, 'Never']])}
+    <p class="note">${status.vault ? 'You will need the master password to unlock again.' : 'Works only when the vault is turned on (see below).'}</p>
+    ${status.vault
+      ? `<p class="note">The vault is on. Logins, passwords and notes are encrypted with your master password.</p>
+         <div class="actions"><button class="danger" id="vOff">Turn off vault</button></div>
+         <p class="note">Turning it off stores your details as plain text.</p>`
+      : `<p class="note">The vault is off, so your details are stored as plain text. Turning it on encrypts them with a master password. If you forget it, it cannot be recovered.</p>
+         <label for="s_pw">New master password</label><input id="s_pw" type="password">
+         <div class="actions"><button class="primary" id="vOn">Turn on vault</button></div>`}
+
+    <h2 class="sec">Backup</h2>
+    <label for="bk_pw">Backup password (at least 8 characters)</label>
+    <input id="bk_pw" type="password" autocomplete="off">
+    <div class="actions"><button id="bkExport">Export encrypted backup</button><button id="bkImport">Import backup</button></div>
+    <p class="note">An exported file is always encrypted with this password and works on any computer. Importing replaces all current accounts.</p>
+    <div class="actions"><button id="bkFolder">Open automatic backups folder</button></div>
+    <p class="note">A copy of your data is saved automatically once a day, the last 7 are kept. These copies are as protected as your data file: encrypted if the vault is on, plain text if it is off.</p>
+    <div class="actions"><button class="sp" id="closeBtn">Close</button></div>`;
+  $('#dlg').showModal();
+  $('#closeBtn').onclick = () => $('#dlg').close();
+  $('#keyBtn').onclick = async () => { await call('setApiKey', $('#s_key').value); status = await call('status'); toast('API key saved'); };
+  $('#portalBtn').onclick = () => call('openPortal');
+  $('#guideBtn').onclick = () => openWelcome();
+  $('#s_ar').onchange = async e => { await call('setSettings', { autoRefreshMin: +e.target.value }); status = await call('status'); setupRefreshTimer(); toast('Saved'); };
+  $('#s_lock').onchange = async e => { await call('setSettings', { lockMinutes: +e.target.value }); status = await call('status'); toast('Saved'); };
+  $('#bkExport').onclick = async () => { const r = await call('backupExport', $('#bk_pw').value); if (r.error) toast(r.error); else if (r.ok) toast('Backup saved'); };
+  $('#bkImport').onclick = async () => {
+    if (!$('#bk_pw').value) return toast('Enter the backup password first.');
+    if (!confirm('Importing replaces all current accounts with the backup. A copy of your current data is saved first. Continue?')) return;
+    const r = await call('backupImport', $('#bk_pw').value);
+    if (r.error) toast(r.error); else if (r.ok) { $('#dlg').close(); await reload(); toast('Imported ' + r.count + ' accounts'); }
+  };
+  $('#bkFolder').onclick = () => call('openBackups');
+  if (status.vault) $('#vOff').onclick = async () => { if (confirm('Turn off encryption? Your details will be stored as plain text.')) { await call('vaultDisable'); status = await call('status'); $('#dlg').close(); toast('Vault turned off'); reload(); } };
+  else $('#vOn').onclick = async () => {
+    const pw = $('#s_pw').value;
+    if (pw.length < 6) return toast('Master password must be at least 6 characters.');
+    await call('vaultEnable', pw); status = await call('status'); $('#dlg').close(); toast('Vault turned on'); reload();
+  };
+}
+
+// ---------- welcome guide (shown once, only while there is no API key) ----------
+function openWelcome() {
+  const d = $('#dlg');
+  d.onclick = null;
+  d.innerHTML = `<h2>Welcome to LoL Keychain</h2>
+    <p class="note" style="font-size:14px;color:var(--text);margin-top:0">To show levels and ranks, the app needs a free Riot API key. It takes about a minute:</p>
+    <ol style="padding-left:20px;line-height:1.7;margin:10px 0">
+      <li>Open the Riot developer portal and sign in with your Riot account.</li>
+      <li>Copy the key shown at the top of the page. It starts with <b>RGAPI-</b>.</li>
+      <li>Paste it below.</li>
+    </ol>
+    <div class="actions" style="margin-top:8px"><button id="wPortal">Open developer portal</button></div>
+    <label for="w_key">Your API key</label>
+    <input id="w_key" placeholder="RGAPI-…" autocomplete="off" spellcheck="false">
+    <p id="w_err" class="err" style="margin:8px 0 0"></p>
+    <p class="note">Development keys expire every 24 hours. When that happens, paste a new one in Settings. The key stays on this computer.</p>
+    <div class="actions">
+      <button class="primary" id="wSave">Save and check</button>
+      <button class="sp" id="wSkip">Skip for now</button>
+    </div>
+    <p class="note">You can open this guide again any time from Settings.</p>`;
+  d.addEventListener('close', () => call('setWelcomeDone'), { once: true });
+  if (!d.open) d.showModal();
+  $('#wPortal').onclick = () => call('openPortal');
+  $('#wSkip').onclick = () => d.close();
+  const save = async () => {
+    $('#w_err').textContent = '';
+    $('#wSave').disabled = true; $('#wSave').textContent = 'Checking…';
+    const r = await call('checkKey', $('#w_key').value);
+    $('#wSave').disabled = false; $('#wSave').textContent = 'Save and check';
+    if (r.error) { $('#w_err').textContent = r.error; return; }
+    status = await call('status');
+    d.close(); toast('API key saved');
+    if (accounts.length) refresh(null);
+  };
+  $('#wSave').onclick = save;
+  $('#w_key').addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+  $('#w_key').focus();
+}
+
+// ---------- clicks ----------
+document.addEventListener('click', e => {
+  const t = e.target;
+  const qb = t.closest('[data-quick]');
+  if (qb) {
+    const a = accounts.find(x => x.id === qb.dataset.id), v = a && a.priv && a.priv[qb.dataset.quick];
+    if (v) copyText(v, qb.dataset.quick === 'password' ? 'Password' : 'Login'); else toast('Nothing saved for this field yet. Open the account to add it.');
+    return;
+  }
+  if (t.dataset.c) { fCat = t.dataset.c; render(); return; }
+  if (t.dataset.copy) { copyText($('#' + t.dataset.copy).value, t.dataset.label || 'Value'); return; }
+  if (t.dataset.show) { const i = $('#' + t.dataset.show); i.type = i.type === 'password' ? 'text' : 'password'; t.textContent = i.type === 'password' ? 'Show' : 'Hide'; }
+  const c = t.closest('.card'); if (c) openDetail(c.dataset.id);
+});
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.classList.contains('card')) openDetail(e.target.dataset.id); });
+$('#fRegion').onchange = e => { fRegion = e.target.value; render(); };
+$('#fTag').onchange = e => { fTag = e.target.value; render(); };
+$('#fSearch').oninput = e => { q = e.target.value.trim().toLowerCase(); render(); };
+
+// ---------- drag to reorder ----------
+let dragId = null;
+document.addEventListener('dragstart', e => {
+  const c = e.target.closest && e.target.closest('.card'); if (!c) return;
+  dragId = c.dataset.id; c.classList.add('drag');
+  e.dataTransfer.effectAllowed = 'move'; e.dataTransfer.setData('text/plain', dragId);
+});
+document.addEventListener('dragover', e => {
+  const c = e.target.closest && e.target.closest('.card'); if (!dragId || !c) return;
+  e.preventDefault();
+  document.querySelectorAll('.over').forEach(x => x.classList.remove('over'));
+  if (c.dataset.id !== dragId) c.classList.add('over');
+});
+document.addEventListener('drop', async e => {
+  const c = e.target.closest && e.target.closest('.card'); if (!dragId || !c || c.dataset.id === dragId) return;
+  e.preventDefault();
+  const from = accounts.findIndex(a => a.id === dragId), to = accounts.findIndex(a => a.id === c.dataset.id);
+  const [m] = accounts.splice(from, 1); accounts.splice(to, 0, m);
+  render();
+  await call('reorder', accounts.map(a => a.id));
+});
+document.addEventListener('dragend', () => { dragId = null; render(); });
+
+// ---------- start, auto refresh, auto lock ----------
+let locked = false, lastActive = Date.now(), refreshTimer = null;
+function setupRefreshTimer() {
+  clearInterval(refreshTimer);
+  if (status.autoRefreshMin > 0) refreshTimer = setInterval(() => {
+    if (!locked) refresh(null, { silent: true, maxAge: status.autoRefreshMin * 30000 });
+  }, status.autoRefreshMin * 60000);
+}
+['mousemove', 'keydown', 'mousedown', 'wheel'].forEach(ev => document.addEventListener(ev, () => { lastActive = Date.now(); }, { passive: true }));
+setInterval(() => {
+  if (!locked && status.vault && status.lockMinutes > 0 && Date.now() - lastActive > status.lockMinutes * 60000) lockNow();
+}, 10000);
+async function lockNow() {
+  await call('lock'); locked = true; accounts = [];
+  const d = $('#dlg'); if (d.open) d.close(); d.innerHTML = '';
+  render();
+  $('#lockPw').value = ''; $('#lockErr').textContent = ''; $('#lock').style.display = 'grid'; $('#lockPw').focus();
+}
+async function begin() {
+  locked = false; lastActive = Date.now();
+  status = await call('status');
+  await reload();
+  setupRefreshTimer();
+  if (!status.apiKey && !status.welcomeDone) openWelcome();
+  refresh(null, { silent: true, maxAge: 15 * 60000 });
+}
+$('#addBtn').onclick = () => openDetail(null);
+$('#refreshAll').onclick = () => refresh(null);
+$('#settingsBtn').onclick = openSettings;
+$('#unlockBtn').onclick = tryUnlock;
+$('#lockPw').addEventListener('keydown', e => { if (e.key === 'Enter') tryUnlock(); });
+async function tryUnlock() {
+  if (await call('unlock', $('#lockPw').value)) { $('#lock').style.display = 'none'; begin(); }
+  else $('#lockErr').textContent = 'Wrong password.';
+}
+(async () => {
+  status = await call('status');
+  if (status.vault && !status.unlocked) { locked = true; $('#lock').style.display = 'grid'; $('#lockPw').focus(); }
+  else begin();
+})();
+</script></body></html>

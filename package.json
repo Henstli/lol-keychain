@@ -1,0 +1,31 @@
+{
+  "name": "lol-manager",
+  "version": "1.0.0",
+  "description": "LoL Keychain, a local manager for League of Legends accounts",
+  "author": "LoL Keychain",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "build": {
+    "appId": "com.lolkeychain.app",
+    "productName": "LoL Keychain",
+    "directories": { "output": "dist" },
+    "files": ["main.js", "preload.js", "index.html", "icon.ico", "icon.png", "package.json"],
+    "win": { "target": "nsis", "icon": "icon.ico" },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LoL Keychain",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}
