@@ -1,0 +1,23 @@
+name: Build and release
+
+# Runs when a version tag like v2.1.1 is pushed: builds the Windows installer
+# and publishes it as a GitHub release, which the app's auto-update picks up.
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: npm ci
+      - run: npx electron-builder --win nsis --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
