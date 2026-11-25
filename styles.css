@@ -56,6 +56,7 @@ nav.side { width: 220px; flex: none; position: sticky; top: 0; height: 100vh; pa
 .brand { display: flex; align-items: center; gap: 10px; padding: 0 8px 22px; font-weight: 700; font-size: 15px; letter-spacing: -.2px; }
 .mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(160deg, #232838, #13161B); border: 1px solid #3A4152; box-sizing: border-box; color: #7C93FF; display: grid; place-items: center; }
 .mark svg.i { stroke-width: 2.6; }
+.mark.lg svg.i { width: 26px; height: 26px; } /* big key on the welcome and lock screens */
 .navitem { display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); text-align: left; font-weight: 500; }
 .navitem:hover { color: var(--text); }
 .navitem[aria-current="page"] { background: var(--active); color: var(--text); font-weight: 600; }
@@ -451,3 +452,8 @@ button.dd.date svg { flex: none; color: var(--muted); }
 .glib-list { flex: 1; min-height: 0; max-height: none; }
 .ghead { margin-bottom: -4px; }
 .acc .actions .btn { padding-top: 2px; }
+
+/* macOS: room for the traffic light buttons in the top left corner */
+body.mac #titlebar { padding-left: 84px; }
+body.mac.has-side #titlebar { padding-left: 14px; }
+body.mac nav.side { padding-top: 44px; }

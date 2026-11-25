@@ -37,7 +37,7 @@ function render() {
     <button class="icon-btn sm" type="button" data-act="dock" aria-pressed="${!!S.status.miniDocked}" title="${S.status.miniDocked ? 'Detach from Riot Client' : 'Attach next to Riot Client'}" aria-label="${S.status.miniDocked ? 'Detach from Riot Client' : 'Attach next to Riot Client'}" style="${S.status.miniDocked ? 'color:var(--accent);border-color:var(--accent)' : ''}">${ic('pin')}</button>
     <button class="icon-btn sm" type="button" data-act="main" title="Open Alts" aria-label="Open Alts">${ic('open')}</button>
     <button class="icon-btn sm" type="button" data-act="close" title="Close" aria-label="Close mini window">${ic('x')}</button></div>`;
-  const note = S.status.platform === 'win32' && S.status.miniDocked ? `<p class="note"><span class="dot ${S.riot ? 'on' : ''}"></span>${S.riot ? 'Attached to the Riot Client' : 'Waiting for the Riot Client window…'}</p>` : '';
+  const note = (S.status.platform === 'win32' || S.status.platform === 'darwin') && S.status.miniDocked ? `<p class="note"><span class="dot ${S.riot ? 'on' : ''}"></span>${S.riot ? 'Attached to the Riot Client' : 'Waiting for the Riot Client window…'}</p>` : '';
   if (S.status.vault && !S.status.unlocked) {
     $('#mini').innerHTML = head + `<div class="locked"><div class="mark" style="width:44px;height:44px;border-radius:12px">${ic('key', 22)}</div><b>Vault locked</b><span class="muted" style="font-size:13px">Unlock it in the main window.</span><button class="btn primary" type="button" data-act="main">Open Alts</button></div>`;
     return;

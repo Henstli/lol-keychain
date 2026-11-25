@@ -1,12 +1,13 @@
 {
   "name": "lol-manager",
-  "version": "2.1.1",
+  "version": "2.2.0",
   "description": "Alts, a local manager for League of Legends accounts",
   "author": "Alts",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
-    "dist": "electron-builder --win nsis --publish never"
+    "dist": "electron-builder --win nsis --publish never",
+    "dist:mac": "electron-builder --mac dmg zip --publish never"
   },
   "devDependencies": {
     "electron": "^33.0.0",
@@ -55,9 +56,41 @@
         "repo": "lol-keychain",
         "releaseType": "release"
       }
-    ]
+    ],
+    "mac": {
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "arm64",
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icon.png",
+      "category": "public.app-category.utilities",
+      "identity": null,
+      "extendInfo": {
+        "NSAppleEventsUsageDescription": "Alts reads where the Riot Client window is, so the mini window can sit right next to it."
+      },
+      "artifactName": "Alts-${version}-${arch}-mac.${ext}"
+    },
+    "dmg": {
+      "artifactName": "Alts-${version}-${arch}.${ext}"
+    },
+    "afterPack": "build/adhoc-sign.js"
   },
   "dependencies": {
     "electron-updater": "^6.3.9"
+  },
+  "allowScripts": {
+    "electron@33.4.11": true
   }
 }

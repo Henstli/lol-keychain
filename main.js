@@ -1,8 +1,9 @@
-const { app, BrowserWindow, ipcMain, dialog, clipboard, shell, globalShortcut, Notification, nativeTheme, Tray, Menu, nativeImage, safeStorage, screen } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog, clipboard, shell, globalShortcut, Notification, nativeTheme, Tray, Menu, nativeImage, safeStorage, screen, systemPreferences } = require('electron');
 const { execFile, spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const os = require('os');
 
 // the data folder stays the same for "npm start" and for the installed app
 app.setPath('userData', path.join(app.getPath('appData'), 'lol-manager'));
@@ -32,6 +33,8 @@ function migrate() {
   if (!db.settings.miniAutoSet) { db.settings.miniAuto = true; db.settings.miniAutoSet = true; }
   // on by default: starts quietly next to the clock when Windows starts
   if (!db.settings.startSet) { db.settings.startWithWindows = true; db.settings.startSet = true; }
+  // macOS: attaching the mini window needs the Accessibility permission, so it starts off and the user turns it on
+  if (process.platform === 'darwin' && !db.settings.macMiniSet) { db.settings.miniAuto = false; db.settings.miniDocked = false; db.settings.macMiniSet = true; }
   if (!db.settings.mode) db.settings.mode = db.settings.apiKey ? 'own' : 'server';
   db.accounts = db.accounts || [];
   db.groups = db.groups || [];
@@ -308,7 +311,7 @@ ipcMain.handle('setSettings', (_, patch) => {
   for (const k of SETTABLE) if (patch && k in patch) db.settings[k] = patch[k];
   if ('hotkey' in (patch || {})) registerHotkey();
   if ('startWithWindows' in (patch || {})) applyLoginItem();
-  if ('miniAuto' in (patch || {})) updateWatcher();
+  if ('miniAuto' in (patch || {})) { if (db.settings.miniAuto) askMacAccess(); updateWatcher(); }
   if ('theme' in (patch || {})) { nativeTheme.themeSource = db.settings.theme === 'system' ? 'system' : db.settings.theme; updateOverlay(); }
   save();
   return statusObj();
@@ -407,8 +410,15 @@ $null = [Windows.Security.Credentials.UI.UserConsentVerifier,Windows.Security.Cr
 if ($args[0] -eq 'check') { Await ([Windows.Security.Credentials.UI.UserConsentVerifier]::CheckAvailabilityAsync()) ([Windows.Security.Credentials.UI.UserConsentVerifierAvailability]) }
 else { Await ([Windows.Security.Credentials.UI.UserConsentVerifier]::RequestVerificationAsync('Unlock Alts')) ([Windows.Security.Credentials.UI.UserConsentVerificationResult]) }
 `;
+const IS_MAC = process.platform === 'darwin';
+const HELLO = IS_MAC ? 'Touch ID' : 'Windows Hello';
 function runHello(mode) {
   return new Promise((resolve) => {
+    // macOS: Touch ID, the vault key is kept protected by the macOS Keychain (safeStorage)
+    if (IS_MAC) {
+      if (mode === 'check') return resolve(systemPreferences.canPromptTouchID() ? 'Available' : 'NotSupported');
+      return systemPreferences.promptTouchID('unlock Alts').then(() => resolve('Verified')).catch((e) => resolve(/cancel/i.test(String(e && e.message)) ? 'Canceled' : 'Error'));
+    }
     if (process.platform !== 'win32') return resolve('NotSupported');
     const script = '& {' + HELLO_PS + '} ' + mode;
     const encoded = Buffer.from(script, 'utf16le').toString('base64');
@@ -426,26 +436,26 @@ function storeHelloKey() { db.settings.helloKey = safeStorage.encryptString(key.
 ipcMain.handle('helloStatus', async () => ({ available: await helloAvailable(), enabled: !!db.settings.helloKey }));
 ipcMain.handle('helloEnable', async () => {
   if (locked() || !db.settings.vault) return { error: 'Turn on the vault and unlock it first.' };
-  if (!(await helloAvailable())) return { error: 'Windows Hello is not set up on this computer. Set up a PIN, fingerprint or face in Windows Settings, Accounts, Sign-in options.' };
+  if (!(await helloAvailable())) return { error: IS_MAC ? 'Touch ID is not set up on this Mac. Add a fingerprint in System Settings, Touch ID & Password.' : 'Windows Hello is not set up on this computer. Set up a PIN, fingerprint or face in Windows Settings, Accounts, Sign-in options.' };
   if (win) win.focus();
   const r = await runHello('verify');
-  if (r !== 'Verified') return { error: r === 'Canceled' ? 'Canceled.' : 'Windows Hello did not confirm it (' + r + ').' };
+  if (r !== 'Verified') return { error: r === 'Canceled' ? 'Canceled.' : HELLO + ' did not confirm it (' + r + ').' };
   storeHelloKey(); save();
   return { ok: true };
 });
 ipcMain.handle('helloDisable', () => { db.settings.helloKey = ''; save(); return { ok: true }; });
 ipcMain.handle('helloUnlock', async () => {
-  if (!db.settings.helloKey || !db.settings.vault) return { error: 'Windows Hello is off.' };
+  if (!db.settings.helloKey || !db.settings.vault) return { error: HELLO + ' is off.' };
   if (win) win.focus();
   const r = await runHello('verify');
-  if (r !== 'Verified') return { error: r === 'Canceled' ? '' : 'Windows Hello did not confirm it. Use your master password.' };
+  if (r !== 'Verified') return { error: r === 'Canceled' ? '' : HELLO + ' did not confirm it. Use your master password.' };
   try {
     const k = Buffer.from(safeStorage.decryptString(Buffer.from(db.settings.helloKey, 'base64')), 'base64');
     dec(db.settings.vault.check, k);
     key = k;
     send('active', db.activeId);
     return { ok: true };
-  } catch { db.settings.helloKey = ''; save(); return { error: 'Windows Hello needs to be set up again. Unlock with your master password.' }; }
+  } catch { db.settings.helloKey = ''; save(); return { error: HELLO + ' needs to be set up again. Unlock with your master password.' }; }
 });
 
 // accounts
@@ -681,7 +691,8 @@ function createTray() {
   const img = nativeImage.createFromPath(path.join(__dirname, 'tray.png'));
   tray = new Tray(img);
   tray.setToolTip('Alts');
-  tray.on('click', showMain);
+  if (IS_MAC) tray.on('click', () => tray.popUpContextMenu(trayMenu())); // menu bar apps open their menu on click
+  else tray.on('click', showMain);
   tray.on('right-click', () => tray.popUpContextMenu(trayMenu()));
 }
 function applyLoginItem() {
@@ -800,11 +811,63 @@ public static class LkWatch {
 '@
 [LkWatch]::Run()
 `;
+// macOS: System Events reports where the Riot Client window is (needs the Accessibility permission).
+// Only the position and size are read, nothing is clicked or typed.
+const WATCH_JXA = `
+ObjC.import('Foundation');
+const se = Application('System Events');
+const outH = $.NSFileHandle.fileHandleWithStandardOutput;
+function out(s) { outH.writeData($(s + '\\n').dataUsingEncoding($.NSUTF8StringEncoding)); }
+function find() {
+  const ps = se.applicationProcesses.whose({ name: { _beginsWith: 'Riot Client' } })();
+  for (const p of ps) { if (p.windows.length > 0) return p; }
+  return ps.length ? ps[0] : null;
+}
+let last = null, p = null, n = 0;
+while (true) {
+  let cur = 'none';
+  try {
+    if (!p || n % 10 === 0) p = find();
+    n++;
+    if (p) {
+      if (!p.visible()) cur = 'min';
+      else if (p.windows.length > 0) {
+        const w = p.windows[0];
+        let min = false; try { min = w.attributes.byName('AXMinimized').value(); } catch (e) {}
+        if (min) cur = 'min';
+        else { const pos = w.position(), size = w.size(); cur = pos[0] + ' ' + pos[1] + ' ' + (pos[0] + size[0]) + ' ' + (pos[1] + size[1]); }
+      }
+    }
+  } catch (e) {
+    p = null;
+    if (/assistive|not allowed|not authorized|-1719|-25211|-1743/i.test(String(e))) { out('noperm'); break; }
+  }
+  if (cur !== last) { out(cur); last = cur; }
+  delay(cur === 'none' ? 0.5 : 0.05);
+}
+`;
+const macTrusted = () => IS_MAC && systemPreferences.isTrustedAccessibilityClient(false);
+let accessPoll = null;
+// shows the macOS prompt for the Accessibility permission, then starts watching once it is given
+function askMacAccess() {
+  if (!IS_MAC || macTrusted()) return;
+  systemPreferences.isTrustedAccessibilityClient(true);
+  if (accessPoll) return;
+  let tries = 0;
+  accessPoll = setInterval(() => {
+    if (macTrusted() || ++tries > 90) { clearInterval(accessPoll); accessPoll = null; updateWatcher(); }
+  }, 2000);
+}
+let noPermShown = false;
 function updateWatcher() {
-  const need = process.platform === 'win32' && ((mini && !mini.isDestroyed() && db.settings.miniDocked) || db.settings.miniAuto);
+  const wanted = (mini && !mini.isDestroyed() && db.settings.miniDocked) || db.settings.miniAuto;
+  const need = wanted && (process.platform === 'win32' || macTrusted());
   if (need && !watcher) {
-    const encoded = Buffer.from(WATCH_PS, 'utf16le').toString('base64');
-    watcher = spawn(PS, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], { windowsHide: true });
+    if (IS_MAC) watcher = spawn('osascript', ['-l', 'JavaScript', '-e', WATCH_JXA]);
+    else {
+      const encoded = Buffer.from(WATCH_PS, 'utf16le').toString('base64');
+      watcher = spawn(PS, ['-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', encoded], { windowsHide: true });
+    }
     let buf = '';
     watcher.stdout.on('data', (d) => {
       buf += d.toString();
@@ -818,6 +881,14 @@ function updateWatcher() {
 }
 let riotMin = false;
 function onRiotRect(line) {
+  if (line === 'noperm') {
+    // macOS said no: stop watching and tell the user where to allow it
+    if (watcher) { watcher.kill(); watcher = null; }
+    riotRect = null;
+    if (!noPermShown) { noPermShown = true; notify('Alts can\'t see the Riot Client', 'Allow Alts in System Settings, Privacy & Security, Accessibility and Automation.'); }
+    if (mini && !mini.isDestroyed()) send('riot', { found: false });
+    return;
+  }
   let next = null;
   const wasThere = !!riotRect || riotMin;
   riotMin = line === 'min';
@@ -834,14 +905,81 @@ function onRiotRect(line) {
   if (mini && !mini.isDestroyed()) send('riot', { found: !!riotRect });
 }
 ipcMain.handle('miniOpen', () => { openMini(); });
-ipcMain.handle('miniDock', (_, on) => { db.settings.miniDocked = !!on; save(); updateWatcher(); if (!on && mini) { const b = db.settings.miniBounds; if (b) mini.setBounds(b); mini.show(); } placeMini(); return statusObj(); });
+ipcMain.handle('miniDock', (_, on) => { db.settings.miniDocked = !!on; save(); if (on) askMacAccess(); updateWatcher(); if (!on && mini) { const b = db.settings.miniBounds; if (b) mini.setBounds(b); mini.show(); } placeMini(); return statusObj(); });
 ipcMain.handle('miniClose', () => { if (mini && !mini.isDestroyed()) mini.close(); });
 ipcMain.handle('openMain', () => showMain());
 
 // ---------- automatic updates from GitHub Releases ----------
-let updater = null, updateReady = null;
+let updater = null, updateReady = null, updateUrl = null;
+const newerThan = (a, b) => { const x = a.split('.').map(Number), y = b.split('.').map(Number); for (let i = 0; i < 3; i++) { if ((x[i] || 0) !== (y[i] || 0)) return (x[i] || 0) > (y[i] || 0); } return false; };
+// macOS: Alts has no paid Apple signature, so the standard updater can't be used.
+// Instead it downloads the new Alts.app from GitHub Releases, and when the app quits a small
+// script swaps it into place (and starts it again after "Restart now").
+const GH_LATEST = 'https://api.github.com/repos/Henstli/lol-keychain/releases/latest';
+let macStaged = null, macSwapStarted = false;
+const macAppPath = () => path.resolve(process.execPath, '..', '..', '..'); // …/Alts.app
+function macCanSwap() {
+  const appPath = macAppPath();
+  if (!appPath.endsWith('.app') || appPath.startsWith('/Volumes/')) return false; // still running from the .dmg
+  try { fs.accessSync(path.dirname(appPath), fs.constants.W_OK); return true; } catch { return false; }
+}
+function setupMacUpdates() {
+  const check = async () => {
+    if (updateReady) return;
+    try {
+      const r = await fetch(GH_LATEST, { headers: { 'User-Agent': 'Alts', Accept: 'application/vnd.github+json' } });
+      if (!r.ok) return;
+      const j = await r.json();
+      const v = String(j.tag_name || '').replace(/^v/, '');
+      if (!v || !newerThan(v, APP_VERSION)) return;
+      const assets = j.assets || [];
+      const zip = assets.find(a => a.name === `Alts-${v}-${process.arch}-mac.zip`);
+      if (zip && macCanSwap()) {
+        const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'alts-update-'));
+        const zp = path.join(dir, 'update.zip');
+        const dl = await fetch(zip.browser_download_url);
+        if (!dl.ok) throw new Error('download');
+        fs.writeFileSync(zp, Buffer.from(await dl.arrayBuffer()));
+        await new Promise((res, rej) => execFile('ditto', ['-x', '-k', zp, path.join(dir, 'new')], (e) => (e ? rej(e) : res())));
+        const newApp = path.join(dir, 'new', 'Alts.app');
+        if (!fs.existsSync(newApp)) throw new Error('unzip');
+        macStaged = newApp; updateReady = v;
+        send('update', { version: v });
+        notify('Alts ' + v + ' is ready', 'Restart the app to update. It also updates the next time you quit.');
+        return;
+      }
+      // can't update by itself (for example started from the .dmg): offer the download instead
+      const dmgs = assets.filter(a => /\.dmg$/i.test(a.name));
+      const dmg = dmgs.find(a => a.name.includes(process.arch)) || dmgs[0];
+      updateReady = v; updateUrl = dmg ? dmg.browser_download_url : j.html_url;
+      send('update', { version: v, manual: true });
+      notify('Alts ' + v + ' is out', 'Download it and move it to Applications. Your accounts stay as they are.');
+    } catch {}
+  };
+  setTimeout(check, 10000);
+  setInterval(check, 6 * 3600e3);
+}
+// waits until Alts has quit, puts the new version in place (the old one comes back if anything fails)
+function macSwap(relaunch) {
+  if (!macStaged || macSwapStarted) return;
+  macSwapStarted = true;
+  const script = [
+    'while kill -0 "$PID" 2>/dev/null; do sleep 0.2; done',
+    'rm -rf "$APP.old"',
+    'if mv "$APP" "$APP.old" && ditto "$NEW" "$APP"; then rm -rf "$APP.old"; else rm -rf "$APP"; mv "$APP.old" "$APP"; fi',
+    'xattr -dr com.apple.quarantine "$APP" 2>/dev/null',
+    'rm -rf "$(dirname "$(dirname "$NEW")")"',
+    '[ "$RELAUNCH" = 1 ] && open "$APP"',
+  ].join('\n');
+  spawn('/bin/sh', ['-c', script], {
+    detached: true, stdio: 'ignore',
+    env: { ...process.env, PID: String(process.pid), APP: macAppPath(), NEW: macStaged, RELAUNCH: relaunch ? '1' : '0' },
+  }).unref();
+}
 function setupUpdates() {
   if (!app.isPackaged) return; // only the installed app updates itself
+  if (IS_MAC) return setupMacUpdates();
+  if (process.platform !== 'win32') return;
   try { updater = require('electron-updater').autoUpdater; } catch { return; }
   updater.autoDownload = true;
   updater.autoInstallOnAppQuit = true;
@@ -851,8 +989,13 @@ function setupUpdates() {
   setTimeout(check, 10000);
   setInterval(check, 6 * 3600e3);
 }
-ipcMain.handle('updateStatus', () => ({ ready: updateReady }));
-ipcMain.handle('installUpdate', () => { if (updater && updateReady) { quitting = true; updater.quitAndInstall(false, true); } });
+ipcMain.handle('updateStatus', () => ({ ready: updateReady, manual: IS_MAC && !macStaged }));
+ipcMain.handle('installUpdate', () => {
+  if (IS_MAC) {
+    if (macStaged) { macSwap(true); quitting = true; app.quit(); }
+    else if (updateUrl) shell.openExternal(updateUrl);
+    return;
+  } if (updater && updateReady) { quitting = true; updater.quitAndInstall(false, true); } });
 
 // encrypted backup export / import
 ipcMain.handle('backupExport', async (_, pw) => {
@@ -888,22 +1031,24 @@ ipcMain.handle('backupImport', async (_, pw) => {
 ipcMain.handle('openBackups', () => { fs.mkdirSync(backupDir(), { recursive: true }); return shell.openPath(backupDir()); });
 
 // ---------- start ----------
-app.setAppUserModelId('com.lolkeychain.app');
+if (process.platform === 'win32') app.setAppUserModelId('com.lolkeychain.app');
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on('second-instance', () => showMain());
+  app.on('activate', () => showMain()); // macOS: clicking the Dock icon opens the window again
   app.whenReady().then(() => {
     load();
     autoBackup();
     nativeTheme.themeSource = db.settings.theme === 'system' ? 'system' : db.settings.theme;
     win = new BrowserWindow({
       // the app draws its own title bar; Windows keeps its normal buttons, in the app's colors
-      titleBarStyle: 'hidden', titleBarOverlay: overlayColors(),
+      // macOS keeps its traffic light buttons in the top left corner
+      titleBarStyle: 'hidden', ...(IS_MAC ? { trafficLightPosition: { x: 16, y: 12 } } : { titleBarOverlay: overlayColors() }),
       width: 1320, height: 860, minWidth: 900, minHeight: 600,
       backgroundColor: db.settings.theme === 'light' ? '#F4F6F9' : '#0F1115', autoHideMenuBar: true, title: 'Alts',
       icon: path.join(__dirname, process.platform === 'win32' ? 'icon.ico' : 'icon.png'),
-      show: !process.argv.includes('--hidden'),
+      show: !process.argv.includes('--hidden') && !(IS_MAC && app.isPackaged && app.getLoginItemSettings().wasOpenedAtLogin),
       webPreferences: { preload: path.join(__dirname, 'preload.js'), contextIsolation: true },
     });
     win.loadFile('index.html');
@@ -912,7 +1057,7 @@ if (!app.requestSingleInstanceLock()) {
       if (quitting || !db.settings.closeToTray) return;
       e.preventDefault();
       win.hide();
-      if (!db.settings.trayHintShown) { db.settings.trayHintShown = true; save(); notify('Alts is still running', 'Find it next to the clock. Right-click the icon to copy logins or quit.'); }
+      if (!db.settings.trayHintShown) { db.settings.trayHintShown = true; save(); notify('Alts is still running', IS_MAC ? 'Find it in the menu bar at the top. Click the icon to copy logins or quit.' : 'Find it next to the clock. Right-click the icon to copy logins or quit.'); }
     });
     createTray();
     applyLoginItem();
@@ -922,6 +1067,6 @@ if (!app.requestSingleInstanceLock()) {
   });
   app.on('before-quit', () => { quitting = true; });
   app.on('before-quit', () => { if (!locked() && db.accounts.length) { db.seenRanks = soloNow(); try { save(); } catch {} } });
-  app.on('will-quit', () => { globalShortcut.unregisterAll(); if (watcher) watcher.kill(); });
+  app.on('will-quit', () => { globalShortcut.unregisterAll(); if (watcher) watcher.kill(); if (IS_MAC) macSwap(false); });
   app.on('window-all-closed', () => app.quit());
 }
