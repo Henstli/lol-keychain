@@ -79,7 +79,10 @@ const ago = (ts) => {
 };
 const todayStr = () => new Date().toISOString().slice(0, 10);
 const daysUntil = (d) => Math.ceil((new Date(d + 'T23:59:59') - Date.now()) / 86400000);
-const hotkeyText = (h) => String(h || '').replace('CommandOrControl', 'Ctrl').replace(/\+/g, '+');
+const IS_MAC = /Mac/i.test(navigator.platform);
+const MOD = IS_MAC ? '⌘' : 'Ctrl'; // shortcut key name shown in the app
+const HELLO = IS_MAC ? 'Touch ID' : 'Windows Hello';
+const hotkeyText = (h) => IS_MAC ? String(h || '').replace('CommandOrControl', '⌘').replace('Alt', '⌥').replace('Shift', '⇧').replace(/\+/g, '') : String(h || '').replace('CommandOrControl', 'Ctrl').replace(/\+/g, '+');
 
 // ---------- state ----------
 const S = {
@@ -185,6 +188,7 @@ function visible() {
 function render() {
   if (drag && drag.started) { S.renderLater = true; return; }
   applyTheme();
+  document.body.classList.toggle('mac', IS_MAC);
   document.body.classList.toggle('has-side', !!(S.status.welcomeDone && !(S.status.vault && !S.status.unlocked)));
   const root = $('#root');
   if (S.status.vault && !S.status.unlocked) {
@@ -229,14 +233,16 @@ function accountsPage() {
   const changes = S.status.showChanges && !S.changesHidden ? S.accounts.map((a) => ({ a, c: changeOf(a) })).filter((x) => x.c) : [];
   const regions = [...new Set(S.accounts.map((a) => a.region))];
   const head = `<header class="top"><h1>Accounts</h1>
-    <label class="search" style="margin-left:auto">${ic('search', 15)}<input id="q" type="search" placeholder="Filter accounts, tags, notes" aria-label="Filter accounts" value="${esc(S.q)}"><span class="kbd" title="Quick switcher">Ctrl K</span></label>
+    <label class="search" style="margin-left:auto">${ic('search', 15)}<input id="q" type="search" placeholder="Filter accounts, tags, notes" aria-label="Filter accounts" value="${esc(S.q)}"><span class="kbd" title="Quick switcher">${MOD} K</span></label>
     <button class="icon-btn" type="button" data-act="miniOpen" aria-label="Open mini window" title="Mini window">${ic('mini')}</button>
     <button class="icon-btn ${S.refreshing ? 'spin' : ''}" type="button" data-act="refreshAll" aria-label="Refresh all accounts" title="Refresh all">${ic('refresh')}</button>
     <button class="icon-btn" type="button" data-act="theme" aria-label="${themeNow() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}">${ic(themeNow() === 'dark' ? 'sun' : 'moon')}</button>
     <button class="btn primary" type="button" data-act="add">${ic('plus', 15)}Add account</button></header>`;
   return `<div class="page">
     ${streamer() ? `<div class="banner info">${ic('eye')}<span class="txt"><b>Streamer mode is on.</b> <span class="muted">Riot IDs, logins, emails and notes are hidden.</span></span><button class="btn sm" type="button" data-act="streamerOff">Turn off</button></div>` : ''}
-    ${S.update ? `<div class="banner info" role="status">${ic('refresh')}<span class="txt"><b>Version ${esc(S.update)} is ready.</b> <span class="muted">Restart to update. Your accounts stay as they are.</span></span><button class="btn sm primary" type="button" data-act="installUpdate">Restart now</button></div>` : ''}
+    ${S.update ? (S.updateManual
+      ? `<div class="banner info" role="status">${ic('refresh')}<span class="txt"><b>Version ${esc(S.update)} is out.</b> <span class="muted">Download it and install it over this one. Your accounts stay as they are.</span></span><button class="btn sm primary" type="button" data-act="installUpdate">Download</button></div>`
+      : `<div class="banner info" role="status">${ic('refresh')}<span class="txt"><b>Version ${esc(S.update)} is ready.</b> <span class="muted">Restart to update. Your accounts stay as they are.</span></span><button class="btn sm primary" type="button" data-act="installUpdate">Restart now</button></div>`) : ''}
     ${bannerHtml()}
     ${head}
     ${changes.length ? `<section class="card-box changes" aria-label="Changes since you last opened the app"><h2>Since you last opened the app</h2>${changes.map(({ a, c }) => `<span class="pill ${c.up ? 'good' : 'bad'}">${esc(nameOf(a))} ${esc(c.text)}</span>`).join('')}<button class="icon-btn sm" style="margin-left:auto;border:0;background:transparent" type="button" data-act="hideChanges" aria-label="Dismiss">${ic('x', 14)}</button></section>` : ''}
@@ -502,7 +508,7 @@ function switcher() {
     if (it.type === 'acc') {
       const a = it.a;
       return hdr + `<div class="item ${sel ? 'sel' : ''}" data-act="swPick" data-i="${i}" role="option" aria-selected="${sel}">${avatar(a, 34)}<div style="flex:1;min-width:0"><div class="name">${esc(nameOf(a))}<span class="tag"> #${esc(tagOf(a))}</span></div><div class="muted" style="font-size:12px">${REG[a.region]}, ${CATS[a.category]}</div></div><span class="pill rank-pill" style="--tc:${tc(solo(a) && solo(a).tier)};font-size:12px">${rankText(solo(a))}</span></div>
-        ${sel ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px 58px"><button class="btn xs primary" type="button" data-act="copy" data-id="${a.id}" data-f="password">Copy password <span style="opacity:.75">Enter</span></button><button class="btn xs" type="button" data-act="copy" data-id="${a.id}" data-f="username">Copy login <span class="muted">Shift Enter</span></button><button class="btn xs" type="button" data-act="open" data-id="${a.id}">Open details <span class="muted">Ctrl Enter</span></button></div>` : ''}`;
+        ${sel ? `<div style="display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px 58px"><button class="btn xs primary" type="button" data-act="copy" data-id="${a.id}" data-f="password">Copy password <span style="opacity:.75">Enter</span></button><button class="btn xs" type="button" data-act="copy" data-id="${a.id}" data-f="username">Copy login <span class="muted">Shift Enter</span></button><button class="btn xs" type="button" data-act="open" data-id="${a.id}">Open details <span class="muted">${MOD} Enter</span></button></div>` : ''}`;
     }
     return hdr + `<div class="item ${sel ? 'sel' : ''}" data-act="swPick" data-i="${i}" role="option" aria-selected="${sel}"><span style="flex:1">${esc(it.label)}</span></div>`;
   }).join('');
@@ -644,18 +650,19 @@ function settingsPage() {
   const row = (label, hint, right) => `<div class="srow"><div class="lab"><b>${label}</b><span>${hint}</span></div>${right}</div>`;
   const CATS2 = [['general', 'General'], ['view', 'Accounts view'], ['security', 'Security'], ['privacy', 'Privacy'], ['keys', 'Shortcuts'], ['data', 'Data and refresh'], ['api', 'Riot data'], ['backup', 'Backups'], ['about', 'About']];
   const sec = {
-    general: ['General', 'How the app looks and runs.', seg('theme', 'Theme', 'Dark is the default.', [['dark', 'Dark'], ['light', 'Light'], ['system', 'Match Windows']])
+    general: ['General', 'How the app looks and runs.', seg('theme', 'Theme', 'Dark is the default.', [['dark', 'Dark'], ['light', 'Light'], ['system', IS_MAC ? 'Match macOS' : 'Match Windows']])
       + seg('closeToTray', 'Closing the window', 'In the background the copy shortcut and the icon next to the clock keep working.', [[true, 'Keeps it running'], [false, 'Quits the app']])
-      + sw('startWithWindows', 'Start with Windows', 'On by default. Starts quietly next to the clock when you sign in to Windows, without opening a window. Works in the installed app.')
+      + sw('startWithWindows', IS_MAC ? 'Open at login' : 'Start with Windows', IS_MAC ? 'On by default. Starts quietly in the menu bar when you log in to your Mac, without opening a window. Works in the installed app.' : 'On by default. Starts quietly next to the clock when you sign in to Windows, without opening a window. Works in the installed app.')
       + row('Mini window', 'A small always-on-top list for copying logins. It can sit right next to the Riot Client login window.', '<button class="btn sm" type="button" data-act="miniOpen">Open</button>')
-      + (s.platform === 'win32' ? sw('miniAuto', 'Open the mini window with the Riot Client', 'Opens next to the Riot Client login window and closes when it closes, for example after you start a game. Only the window position is read.') : '')],
+      + (s.platform === 'win32' ? sw('miniAuto', 'Open the mini window with the Riot Client', 'Opens next to the Riot Client login window and closes when it closes, for example after you start a game. Only the window position is read.') : '')
+      + (s.platform === 'darwin' ? sw('miniAuto', 'Open the mini window with the Riot Client', 'Opens next to the Riot Client login window and closes when it closes. macOS asks you to allow Alts in Privacy & Security, Accessibility. Only the window position is read.') : '')],
     view: ['Accounts view', 'What you see on the Accounts page.', sw('showRecent', 'Recently used at the top', 'Accounts you copied from last appear first.') + sw('showPinned', 'Pinned accounts', 'Shows the pinned row above all accounts.') + sw('showChanges', 'Changes since last open', 'LP gained or lost, promotions and demotions.')],
     security: ['Security', 'Protect your logins and passwords.', (s.vault
       ? seg('lockMinutes', 'Lock after inactivity', 'You need the master password to unlock.', [[5, '5 min'], [15, '15 min'], [30, '30 min'], [60, '1 hour'], [0, 'Never']]) + row('Master password', 'Encrypts logins, passwords and notes.', '<button class="btn sm" type="button" data-act="pw" data-v="change">Change</button>') + row('Encryption', 'Turning it off stores logins as plain text on this computer.', '<button class="btn sm danger" type="button" data-act="vaultOff">Turn off</button>')
       : row('Encryption is off', 'Logins and passwords are stored as plain text. Turn it on to encrypt them with a master password.', '<button class="btn sm primary" type="button" data-act="pw" data-v="enable">Turn on</button>'))
-      + (s.platform === 'win32' ? `<div class="srow"><div class="lab"><b>Windows Hello</b><span>${!s.vault ? 'Turn on the vault first.' : S.helloAvail === false ? 'Not set up on this computer. Add a PIN, fingerprint or face in Windows Settings, Accounts, Sign-in options.' : 'Unlock with your fingerprint, face or Windows PIN. The master password keeps working too.'}</span></div><button class="switch" type="button" role="switch" aria-checked="${!!s.hello}" aria-label="Windows Hello" data-act="hello" ${!s.vault || S.helloAvail === false ? 'disabled' : ''}></button><p class="error-text" id="helloErr" style="flex-basis:100%;margin:0"></p></div>` : '')],
+      + (s.platform === 'win32' || s.platform === 'darwin' ? `<div class="srow"><div class="lab"><b>${HELLO}</b><span>${!s.vault ? 'Turn on the vault first.' : S.helloAvail === false ? (IS_MAC ? 'Not set up on this Mac. Add a fingerprint in System Settings, Touch ID & Password.' : 'Not set up on this computer. Add a PIN, fingerprint or face in Windows Settings, Accounts, Sign-in options.') : (IS_MAC ? 'Unlock with your fingerprint. The master password keeps working too.' : 'Unlock with your fingerprint, face or Windows PIN. The master password keeps working too.')}</span></div><button class="switch" type="button" role="switch" aria-checked="${!!s.hello}" aria-label="${HELLO}" data-act="hello" ${!s.vault || S.helloAvail === false ? 'disabled' : ''}></button><p class="error-text" id="helloErr" style="flex-basis:100%;margin:0"></p></div>` : '')],
     privacy: ['Privacy', 'Useful when you stream or share your screen.', sw('streamer', 'Streamer mode', 'Hides Riot IDs, logins, emails and notes.') + seg('clipSeconds', 'Clear clipboard after', 'Copied logins and passwords are removed.', [[15, '15 s'], [30, '30 s'], [60, '60 s']])],
-    keys: ['Shortcuts', 'The copy shortcut works even when the app is in the background.', row('Copy login, then password', 'First press copies the login of the active account, the next press within 30 s the password. The active account is the one you last clicked or copied from.', `<span class="kbd" style="font-size:13px;padding:4px 10px">${esc(S.capture ? 'Press keys…' : hotkeyText(s.hotkey))}</span><button class="btn sm" type="button" data-act="captureKey">${S.capture ? 'Cancel' : 'Change'}</button>`) + row('Quick switcher', 'Search accounts and actions inside the app.', '<span class="kbd" style="font-size:13px;padding:4px 10px">Ctrl+K</span>')],
+    keys: ['Shortcuts', 'The copy shortcut works even when the app is in the background.', row('Copy login, then password', 'First press copies the login of the active account, the next press within 30 s the password. The active account is the one you last clicked or copied from.', `<span class="kbd" style="font-size:13px;padding:4px 10px">${esc(S.capture ? 'Press keys…' : hotkeyText(s.hotkey))}</span><button class="btn sm" type="button" data-act="captureKey">${S.capture ? 'Cancel' : 'Change'}</button>`) + row('Quick switcher', 'Search accounts and actions inside the app.', '<span class="kbd" style="font-size:13px;padding:4px 10px">' + (IS_MAC ? '⌘K' : 'Ctrl+K') + '</span>')],
     data: ['Data and refresh', 'How often ranks and levels load.', seg('autoRefreshMin', 'Refresh while open', 'Data always refreshes at startup.', [[0, 'Startup only'], [30, '30 min'], [60, '1 hour'], [180, '3 hours']]) + row('Split end date', 'Used for the countdown on the Stats page.', `<input class="input" type="date" id="splitEnd" value="${esc(s.splitEnd || '')}" style="width:170px;height:34px" aria-label="Split end date">`)],
     api: ['Riot data', 'Where levels and ranks come from.', seg2('Connection', s.mode === 'server' ? 'Through the Alts server with an invite code. No API key needed.' : 'Directly from Riot with your own API key.', [['server', 'Invite code', !!s.inviteHint], ['own', 'Own API key', !!s.hasOwnKey]], s.mode)
       + `<div class="srow"><div class="lab"><b>Invite code</b><span>${s.inviteHint ? 'Saved: ' + esc(s.inviteHint) : 'The code you got from a friend, for example LK-AB12-CD34.'}</span></div><div style="display:flex;gap:6px;flex:1 1 320px"><input class="input mono" id="inviteCode" placeholder="LK-XXXX-XXXX" style="height:34px;text-transform:uppercase" autocomplete="off"><button class="btn sm ${s.mode === 'server' ? 'primary' : ''}" type="button" data-act="saveInvite">Save and check</button></div><p class="error-text" id="invErr" style="flex-basis:100%;margin:0"></p></div>`
@@ -671,9 +678,9 @@ function settingsPage() {
 // ---------- lock and welcome ----------
 function lockScreen() {
   return `<div class="center"><section class="panel" style="width:min(400px,100%)" aria-labelledby="lock-h"><div class="pad" style="align-items:center;text-align:center">
-    <div class="mark" style="width:52px;height:52px;border-radius:14px">${ic('key', 26)}</div>
-    <div><h1 id="lock-h" style="font-size:22px">Vault locked</h1><p class="muted" style="margin:6px 0 0">${S.status.hello ? 'Use Windows Hello or your master password.' : 'Enter your master password to unlock.'}</p></div>
-    ${S.status.hello ? `<button class="btn primary" type="button" data-act="helloUnlock" style="width:100%">${ic('user', 16)}Unlock with Windows Hello</button><div class="muted" style="font-size:12px">or</div>` : ''}
+    <div class="mark lg" style="width:52px;height:52px;border-radius:14px">${ic('key', 26)}</div>
+    <div><h1 id="lock-h" style="font-size:22px">Vault locked</h1><p class="muted" style="margin:6px 0 0">${S.status.hello ? 'Use ' + HELLO + ' or your master password.' : 'Enter your master password to unlock.'}</p></div>
+    ${S.status.hello ? `<button class="btn primary" type="button" data-act="helloUnlock" style="width:100%">${ic('user', 16)}Unlock with ${HELLO}</button><div class="muted" style="font-size:12px">or</div>` : ''}
     <form id="lockForm" style="width:100%;display:flex;flex-direction:column;gap:8px;text-align:left"><label class="field">Master password<input class="input" type="password" id="lockpw" autocomplete="current-password"></label><p class="error-text" id="lockErr"></p><button class="btn ${S.status.hello ? '' : 'primary'}" type="submit">Unlock with password</button></form>
   </div></section></div>`;
 }
@@ -682,7 +689,7 @@ function welcome() {
   const st = S.welcomeStep;
   const steps = `<div class="steps" role="img" aria-label="Step ${st} of 4">${[1, 2, 3, 4].map((n) => `<span class="${n <= st ? 'on' : ''}"></span>`).join('')}</div>`;
   let body = '';
-  if (st === 1) body = `<div class="mark" style="width:52px;height:52px;border-radius:14px">${ic('key', 26)}</div><h1>Welcome to Alts Keychain</h1><p class="muted" style="margin:0;line-height:1.55">Keep all your League accounts in one place, see their ranks at a glance and log in faster. Everything you save stays on this computer.</p>`;
+  if (st === 1) body = `<div class="mark lg" style="width:52px;height:52px;border-radius:14px">${ic('key', 26)}</div><h1>Welcome to Alts Keychain</h1><p class="muted" style="margin:0;line-height:1.55">Keep all your League accounts in one place, see their ranks at a glance and log in faster. Everything you save stays on this computer.</p>`;
   if (st === 2 && !S.wOwn) body = `<h1 style="font-size:24px">Invite code</h1><p class="muted" style="margin:0;line-height:1.55">Paste the invite code you got from a friend. Ranks and levels then load through the Alts server, so you don't need your own Riot API key.</p><label class="field">Invite code<input class="input mono" id="wInvite" placeholder="LK-XXXX-XXXX" style="text-transform:uppercase" autocomplete="off"></label><p class="error-text" id="wErr"></p><button class="btn ghost" type="button" data-act="wOwn" style="align-self:flex-start;padding:0;color:var(--accent)">I have my own Riot API key instead</button>`;
   if (st === 2 && S.wOwn) body = `<h1 style="font-size:24px">Riot API key</h1><p class="muted" style="margin:0;line-height:1.55">Sign in at the developer portal, copy the key at the top of the page and paste it here.</p><button class="btn" type="button" data-act="openPortal" style="align-self:flex-start">Open developer portal</button><label class="field">Your API key<input class="input" id="wKey" placeholder="RGAPI-…" autocomplete="off"></label><p class="error-text" id="wErr"></p><p class="muted" style="margin:0;font-size:12px">Development keys expire every 24 hours. You can paste a new one in Settings any time.</p><button class="btn ghost" type="button" data-act="wOwn" style="align-self:flex-start;padding:0;color:var(--accent)">I have an invite code instead</button>`;
   if (st === 3) body = `<h1 style="font-size:24px">Protect your vault</h1><p class="muted" style="margin:0;line-height:1.55">Choose a master password to encrypt your logins and passwords. If you forget it, they can't be recovered, so write it down somewhere safe.</p><label class="field">Master password<input class="input" type="password" id="wPw" placeholder="At least 8 characters"></label><label class="field">Repeat it<input class="input" type="password" id="wPw2"></label><p class="error-text" id="wErr"></p>`;
@@ -899,7 +906,7 @@ document.addEventListener('click', async (e) => {
     case 'gMenu': S.gMenu = S.gMenu === v ? null : v; renderKeep(); break;
     case 'askGroupDelete': { const g = S.groups.find((x) => x.id === v); S.modal = { type: 'confirmGroupDelete', id: v, name: g ? g.name : '' }; render(); break; }
     case 'scope': S.statsScope = v; render(); break;
-    case 'scat': S.scat = v; S.capture = false; render(); if (v === 'security' && S.helloAvail === undefined && S.status.platform === 'win32') { S.helloAvail = null; ipc.invoke('helloStatus').then((h) => { S.helloAvail = h.available; if (S.view === 'settings' && S.scat === 'security') render(); }); } break;
+    case 'scat': S.scat = v; S.capture = false; render(); if (v === 'security' && S.helloAvail === undefined && (S.status.platform === 'win32' || S.status.platform === 'darwin')) { S.helloAvail = null; ipc.invoke('helloStatus').then((h) => { S.helloAvail = h.available; if (S.view === 'settings' && S.scat === 'security') render(); }); } break;
     case 'toggleSet': setSetting({ [el.dataset.k]: !S.status[el.dataset.k] }); break;
     case 'segSet': { const k = el.dataset.k; const num = ['lockMinutes', 'clipSeconds', 'autoRefreshMin'].includes(k); await setSetting({ [k]: num ? Number(v) : v === 'true' ? true : v === 'false' ? false : v }); setupTimers(); break; }
     case 'captureKey': S.capture = !S.capture; render(); break;
@@ -915,7 +922,7 @@ document.addEventListener('click', async (e) => {
       const on = !S.status.hello; el.disabled = true;
       const r = await ipc.invoke(on ? 'helloEnable' : 'helloDisable');
       await reloadStatus(); render();
-      if (r.error && $('#helloErr')) $('#helloErr').textContent = r.error; else if (!r.error) toast(on ? 'Windows Hello is on' : 'Windows Hello is off');
+      if (r.error && $('#helloErr')) $('#helloErr').textContent = r.error; else if (!r.error) toast(HELLO + (on ? ' is on' : ' is off'));
       break;
     }
     case 'helloUnlock': await helloUnlock(); break;
@@ -1020,7 +1027,7 @@ document.addEventListener('keydown', async (e) => {
     e.preventDefault();
     if (e.key === 'Escape') { S.capture = false; render(); return; }
     if (['Control', 'Shift', 'Alt', 'Meta'].includes(e.key)) return;
-    const mods = [e.ctrlKey ? 'CommandOrControl' : '', e.altKey ? 'Alt' : '', e.shiftKey ? 'Shift' : ''].filter(Boolean);
+    const mods = [(e.ctrlKey || e.metaKey) ? 'CommandOrControl' : '', e.altKey ? 'Alt' : '', e.shiftKey ? 'Shift' : ''].filter(Boolean);
     if (!mods.length) return;
     const k = e.key.length === 1 ? e.key.toUpperCase() : e.key;
     S.capture = false; await setSetting({ hotkey: [...mods, k].join('+') }); return;
@@ -1037,7 +1044,7 @@ document.addEventListener('keydown', async (e) => {
       const it = items[S.sw.sel]; if (!it) return;
       if (it.type === 'act') { runSw(S.sw.sel); return; }
       const id = it.a.id; S.sw = null;
-      if (e.ctrlKey) { S.detail = id; S.dtab = 'overview'; render(); return; }
+      if (e.ctrlKey || e.metaKey) { S.detail = id; S.dtab = 'overview'; render(); return; }
       render(); await copy(id, e.shiftKey ? 'username' : 'password');
     }
     return;
@@ -1222,8 +1229,8 @@ ipc.on('progress', (p) => {
 });
 ipc.on('copied', async () => { await reloadData(); if (!S.detail && !S.modal && !S.sw && S.status.unlocked) renderKeep(); });
 ipc.on('active', (id) => { S.status.activeId = id; });
-ipc.on('update', (u) => { S.update = u.version; if (S.view === 'accounts' && !S.modal) renderKeep(); });
-ipc.invoke('updateStatus').then((u) => { if (u && u.ready) S.update = u.ready; });
+ipc.on('update', (u) => { S.update = u.version; S.updateManual = !!u.manual; if (S.view === 'accounts' && !S.modal) renderKeep(); });
+ipc.invoke('updateStatus').then((u) => { if (u && u.ready) { S.update = u.ready; S.updateManual = !!u.manual; } });
 // match history arrives in the background, one account at a time
 ipc.on('account', (a) => {
   if (!S.accounts.some((x) => x.id === a.id)) return;
